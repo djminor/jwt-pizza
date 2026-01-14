@@ -12,7 +12,7 @@ As part of `Deliverable ⓵ Development deployment: JWT Pizza`, start up the app
 | Order pizza                                         |        menu.tsx             |        [POST] ${config.factory.url}/api/order`          |       `INSERT INTO dinerOrder (dinerId, franchiseId, storeId, date) VALUES (?, ?, ?, now())` <br/>   `INSERT INTO orderItem (orderId, menuId, description, price) VALUES (?, ?, ?, ?)`     |
 | Verify pizza                                        |       delivery.tsx             |         [POST] '/api/order/verify'          |       None       |
 | View profile page                                   |        dinerDashboard.txt            |        getOrders in orderRouter.js           |      `SELECT id, franchiseId, storeId, date FROM dinerOrder WHERE dinerId=? LIMIT ${offset},${config.db.listPerPage}` <br/>     `SELECT id, menuId, description, price FROM orderItem WHERE orderId=?`    |
-| View franchise<br/>(as diner)                       |                    |                   |              |
+| View franchise<br/>(as diner)                       |          franchiseDashboard.tsx          |         getFranchises in franchiseRouter (will return none)          |      `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}` <br/>    `SELECT id, name FROM store WHERE franchiseId=?`     |
 | Logout                                              |                    |                   |              |
 | View About page                                     |                    |                   |              |
 | View History page                                   |                    |                   |              |
