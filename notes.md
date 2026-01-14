@@ -22,5 +22,5 @@ As part of `Deliverable ⓵ Development deployment: JWT Pizza`, start up the app
 | Close a store                                       |         closeStore.tsx           |        [DELETE] '/:franchiseId/store/:storeId'           |       `DELETE FROM store WHERE franchiseId=? AND id=?`       |
 | Login as admin<br/>(a@jwt.com, pw: admin)           |         login.tsx           |         [PUT] '/api/auth'          |      `INSERT INTO auth (token, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE token=token`           |
 | View Admin page                                     |         adminDashboard.tsx           |         getFranchises in franchiseRouter          |       `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}` <br/>    `SELECT id, name FROM store WHERE franchiseId=?`       |
-| Create a franchise for t@jwt.com                    |                    |                   |              |
-| Close the franchise for t@jwt.com                   |                    |                   |              |
+| Create a franchise for t@jwt.com                    |       createFranchise.tsx             |        createFranchise in franchiseRouter.js           |       `SELECT id, name FROM user WHERE email=?`       |
+| Close the franchise for t@jwt.com                   |         closeFranchise.tsx           |        [DELETE] '/:franchiseId'           |      `DELETE FROM store WHERE franchiseId=?` <br/>     `DELETE FROM userRole WHERE objectId=?`<br/>   `DELETE FROM franchise WHERE id=?`  |
