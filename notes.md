@@ -19,8 +19,8 @@ As part of `Deliverable ⓵ Development deployment: JWT Pizza`, start up the app
 | Login as franchisee<br/>(f@jwt.com, pw: franchisee) |          login.tsx          |          [PUT] '/api/auth'         |        `INSERT INTO auth (token, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE token=token`      |
 | View franchise<br/>(as franchisee)                  |          franchise-dashboard.tsx          |         getFranchises in franchiseRouter          |       `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}` <br/>    `SELECT id, name FROM store WHERE franchiseId=?`       |
 | Create a store                                      |          createStore.tsx          |         [POST] '/:franchiseId/store          |       `INSERT INTO store (franchiseId, name) VALUES (?, ?)`       |
-| Close a store                                       |                    |                   |              |
-| Login as admin<br/>(a@jwt.com, pw: admin)           |                    |                   |              |
-| View Admin page                                     |                    |                   |              |
+| Close a store                                       |         closeStore.tsx           |        [DELETE] '/:franchiseId/store/:storeId'           |       `DELETE FROM store WHERE franchiseId=? AND id=?`       |
+| Login as admin<br/>(a@jwt.com, pw: admin)           |         login.tsx           |         [PUT] '/api/auth'          |      `INSERT INTO auth (token, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE token=token`           |
+| View Admin page                                     |         adminDashboard.tsx           |         getFranchises in franchiseRouter          |       `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}` <br/>    `SELECT id, name FROM store WHERE franchiseId=?`       |
 | Create a franchise for t@jwt.com                    |                    |                   |              |
 | Close the franchise for t@jwt.com                   |                    |                   |              |
