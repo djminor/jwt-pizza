@@ -14,10 +14,10 @@ As part of `Deliverable ⓵ Development deployment: JWT Pizza`, start up the app
 | View profile page                                   |        dinerDashboard.txt            |        getOrders in orderRouter.js           |      `SELECT id, franchiseId, storeId, date FROM dinerOrder WHERE dinerId=? LIMIT ${offset},${config.db.listPerPage}` <br/>     `SELECT id, menuId, description, price FROM orderItem WHERE orderId=?`    |
 | View franchise<br/>(as diner)                       |          franchiseDashboard.tsx          |         getFranchises in franchiseRouter (will return none)          |      `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}` <br/>    `SELECT id, name FROM store WHERE franchiseId=?`     |
 | Logout                                              |      logout.tsx              |        [DELETE] '/api/auth'           |       `DELETE FROM auth WHERE token=?`       |
-| View About page                                     |                    |                   |              |
-| View History page                                   |                    |                   |              |
-| Login as franchisee<br/>(f@jwt.com, pw: franchisee) |                    |                   |              |
-| View franchise<br/>(as franchisee)                  |                    |                   |              |
+| View About page                                     |         about.tsx           |        None           |        None      |
+| View History page                                   |         history.tsx           |         None          |        None      |
+| Login as franchisee<br/>(f@jwt.com, pw: franchisee) |          login.tsx          |          [PUT] '/api/auth'         |        `INSERT INTO auth (token, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE token=token`      |
+| View franchise<br/>(as franchisee)                  |          franchise-dashboard.tsx          |         getFranchises in franchiseRouter          |       `SELECT id, name FROM franchise WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}` <br/>    `SELECT id, name FROM store WHERE franchiseId=?`       |
 | Create a store                                      |                    |                   |              |
 | Close a store                                       |                    |                   |              |
 | Login as admin<br/>(a@jwt.com, pw: admin)           |                    |                   |              |
