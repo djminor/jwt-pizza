@@ -86,6 +86,12 @@ test('history page loads', async ({ page }) => {
     await expect(page.getByRole('heading')).toContainText('Mama Rucci, my my');
 });
 
+test('not found page loads', async ({ page }) => {
+    await page.goto('http://localhost:5173/nonexistent');
+    await expect(page.getByRole('heading')).toContainText('Oops');
+    await expect(page.getByRole('main')).toContainText('It looks like we have dropped a pizza on the floor. Please try another page.');
+});
+
 test('admin can create franchises', async ({ page }) => {
 });
 
