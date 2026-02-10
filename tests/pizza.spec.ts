@@ -74,6 +74,14 @@ test('logging in as admin gives access to admin dashboard', async ({ page }) => 
 
 test('user can create stores', async ({ page }) => {});
 
+test('about page loads', async ({ page }) => {
+    await page.goto('http://localhost:5173/');
+    await page.getByRole('link', { name: 'About' }).click();
+    await expect(page.getByRole('main')).toContainText('The secret sauce');
+});
+
+
+
 test('admin can create franchises', async ({ page }) => {
 });
 
