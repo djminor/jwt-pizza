@@ -33,6 +33,19 @@ test('login with wrong password should fail', async ({ page }) => {
     await page.getByText('{"code":404,"message":"').click();
 });
 
+test('logout', async ({ page }) => {
+    await page.goto('http://localhost:5173/');
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('t@jwt.com');
+    await page.getByRole('textbox', { name: 'Email address' }).press('Tab');
+    await page.getByRole('textbox', { name: 'Password' }).fill('test');
+    await page.getByRole('textbox', { name: 'Password' }).press('Enter');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('link', { name: 'Logout' }).click();
+    await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
+    await expect(page.locator('#navbar-dark')).toContainText('Register');
+});
+
 test('register user', async ({ page }) => {
     await page.goto('http://localhost:5173/');
     await page.getByRole('link', { name: 'Register' }).click();
@@ -58,3 +71,10 @@ test('logging in as admin gives access to admin dashboard', async ({ page }) => 
     await page.getByRole('link', { name: 'Admin' }).click();
     await page.getByRole('link', { name: 'admin-dashboard' }).click();
 });
+
+test('user can create stores', async ({ page }) => {});
+
+test('admin can create franchises', async ({ page }) => {
+});
+
+test('admin can close franchises', async ({ page }) => {});
