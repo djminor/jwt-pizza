@@ -80,7 +80,11 @@ test('about page loads', async ({ page }) => {
     await expect(page.getByRole('main')).toContainText('The secret sauce');
 });
 
-
+test('history page loads', async ({ page }) => {
+    await page.goto('http://localhost:5173/');
+    await page.getByRole('link', { name: 'History' }).click();
+    await expect(page.getByRole('heading')).toContainText('Mama Rucci, my my');
+});
 
 test('admin can create franchises', async ({ page }) => {
 });
