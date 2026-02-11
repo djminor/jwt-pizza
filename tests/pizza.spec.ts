@@ -11,6 +11,13 @@ async function basicInit(page: Page) {
         email: 'd@jwt.com',
         password: 'a',
         roles: [{ role: Role.Diner }]
+      },
+      'a@jwt.com': {
+        id: '1',
+        name: 'Admin User',
+        email: 'a@jwt.com',
+        password: 'admin',
+        roles: [{ role: Role.Admin }]
       }
     };
   
@@ -186,6 +193,33 @@ async function basicInit(page: Page) {
     await page.goto('/docs');
     await expect(page.getByRole('main')).toContainText('JWT Pizza API');
   });
+
+  test('about page loads correctly', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'About' }).click();
+    await expect(page.getByRole('main')).toContainText('The secret sauce');
+    await expect(page).toHaveURL(/\/about$/);
+  });
+
+  test('history page loads correctly', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'History'}).click();
+    await expect(page.getByRole('main')).toContainText('Mama Rucci, my my');
+    await expect(page).toHaveURL(/\/history$/);
+  });
+
+  test('admin dashboard loads correctly', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('a@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('admin');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('link', { name: 'Admin' }).click();
+    await expect(page.locator('h2')).toContainText('Mama Ricci\'s kitchen');
+    await expect(page).toHaveURL(/\/admin-dashboard$/);
+  });
+
 
 
 
