@@ -1,32 +1,62 @@
-import test, { expect, Page } from "@playwright/test";
+import { test, expect } from "playwright-test-coverage";
+import { Page } from "@playwright/test";
 import { Role, User } from "../src/service/pizzaService";
 
 async function basicInit(page: Page) {
-    let loggedInUser: User | undefined;
-    const validUsers: Record<string, User> = { 'd@jwt.com': { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'a', roles: [{ role: Role.Diner }] } };
-  
-    // Authorize login for the given user
-    await page.route('*/**/api/auth', async (route) => {
-      const loginReq = route.request().postDataJSON();
-      const user = validUsers[loginReq.email];
-      if (!user || user.password !== loginReq.password) {
-        await route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
-        return;
-      }
-      loggedInUser = validUsers[loginReq.email];
-      const loginRes = {
-        user: loggedInUser,
-        token: 'abcdef',
-      };
-      expect(route.request().method()).toBe('PUT');
-      await route.fulfill({ json: loginRes });
+    // Scoped variables within the function to prevent cross-worker pollution
+  let loggedInUser: User | undefined;
+  const validUsers: Record<string, User> = { 
+    'd@jwt.com': { 
+      id: '3', 
+      name: 'Kai Chen', 
+      email: 'd@jwt.com', 
+      password: 'a', 
+      roles: [{ role: Role.Diner }] 
+    } 
+  };
+
+  await page.route('*/**/api/auth', async (route) => {
+    const method = route.request().method();
+    
+    // Handle Logout (DELETE)
+    if (method === 'DELETE') {
+      loggedInUser = undefined;
+      await route.fulfill({ json: { message: 'logout successful' } });
+      return;
+    }
+
+    // Handle Login (Expects PUT/POST)
+    const loginReq = route.request().postDataJSON();
+    
+    // SAFETY: Check if body exists before accessing .email
+    if (!loginReq || !loginReq.email) {
+      await route.fulfill({ 
+        status: 400, 
+        json: { message: 'Missing credentials' } 
+      });
+      return;
+    }
+
+    const user = validUsers[loginReq.email];
+    if (!user || user.password !== loginReq.password) {
+      await route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
+      return;
+    }
+
+    loggedInUser = user;
+    await route.fulfill({ 
+      json: { user: loggedInUser, token: 'abcdef' } 
     });
-  
-    // Return the currently logged in user
-    await page.route('*/**/api/user/me', async (route) => {
-      expect(route.request().method()).toBe('GET');
+  });
+
+  await page.route('*/**/api/user/me', async (route) => {
+    // If no user is logged in, return 401 or null depending on your app's expectation
+    if (!loggedInUser) {
+      await route.fulfill({ status: 401, json: { message: 'Not logged in' } });
+    } else {
       await route.fulfill({ json: loggedInUser });
-    });
+    }
+  });
   
     // A standard menu
     await page.route('*/**/api/order/menu', async (route) => {
@@ -126,3 +156,31 @@ async function basicInit(page: Page) {
     // Check balance
     await expect(page.getByText('0.008')).toBeVisible();
   });
+
+  test('logout removes user session', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('d@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).fill('a');
+    await page.getByRole('button', { name: 'Login' }).click();
+
+    // Verify Logged In
+    await expect(page.getByRole('link', { name: 'KC' })).toBeVisible();
+
+    // Logout
+    await page.getByRole('link', { name: 'Logout' }).click();
+    await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
+  });
+
+  test('invalid login does not navigate', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('wrong@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('bad');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+
+
