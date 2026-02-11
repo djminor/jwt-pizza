@@ -18,24 +18,45 @@ async function basicInit(page: Page) {
         email: 'a@jwt.com',
         password: 'admin',
         roles: [{ role: Role.Admin }]
+      },
+      'f@jwt.com': {
+        id: '2',
+        name: 'Franchise Owner',
+        email: 'f@jwt.com',
+        password: 'franchisee',
+        roles: [{ role: Role.Franchisee }]
       }
     };
   
     // --- Auth & User Mocking ---
     await page.route('*/**/api/auth', async (route) => {
       const method = route.request().method();
+      
+      // 1. Handle Logout
       if (method === 'DELETE') {
         loggedInUser = undefined;
         return route.fulfill({ json: { message: 'logout successful' } });
       }
   
-      const loginReq = route.request().postDataJSON();
-      if (!loginReq || !loginReq.email) {
+      const payload = route.request().postDataJSON();
+      if (!payload || !payload.email) {
         return route.fulfill({ status: 400, json: { message: 'Missing credentials' } });
       }
   
-      const user = validUsers[loginReq.email];
-      if (!user || user.password !== loginReq.password) {
+      // 2. Handle Registration (POST with a name field)
+      if (method === 'POST' && payload.name) {
+        loggedInUser = {
+          id: '99', // Mock ID for new users
+          name: payload.name,
+          email: payload.email,
+          roles: [{ role: Role.Diner }]
+        };
+        return route.fulfill({ json: { user: loggedInUser, token: 'abcdef' } });
+      }
+  
+      // 3. Handle Login (Existing Users)
+      const user = validUsers[payload.email];
+      if (!user || user.password !== payload.password) {
         return route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
       }
   
@@ -71,24 +92,18 @@ async function basicInit(page: Page) {
       });
     });
   
-    // --- Multi-Method Order Mocking (FIXED) ---
+    // --- Multi-Method Order Mocking ---
     await page.route('*/**/api/order', async (route) => {
       const method = route.request().method();
-  
       if (method === 'GET') {
-        // Dashboard/History view
         await route.fulfill({
           json: {
             dinerId: loggedInUser?.id || '3',
-            orders: [
-              { id: 1, menuId: 1, storeId: 4, date: '2024-05-20' },
-              { id: 2, menuId: 2, storeId: 7, date: '2024-05-21' }
-            ],
+            orders: [{ id: 1, menuId: 1, storeId: 4, date: '2024-05-20' }],
             page: 1
           }
         });
       } else if (method === 'POST') {
-        // Create Order
         const orderReq = route.request().postDataJSON();
         await route.fulfill({
           json: { order: { ...orderReq, id: 23 }, jwt: 'eyJpYXQ' }
@@ -218,6 +233,16 @@ async function basicInit(page: Page) {
     await page.getByRole('link', { name: 'Admin' }).click();
     await expect(page.locator('h2')).toContainText('Mama Ricci\'s kitchen');
     await expect(page).toHaveURL(/\/admin-dashboard$/);
+  });
+
+  test('register new user', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Register' }).click();
+    await page.getByRole('textbox', { name: 'Name' }).fill('New User');
+    await page.getByRole('textbox', {name: 'Email'}).fill('new@jwt.com')
+    await page.getByRole('textbox', { name: 'Password' }).fill('newpassword');
+    await page.getByRole('button', { name: 'Register' }).click();
+    await expect(page.getByRole('link', { name: 'Logout' })).toBeVisible();
   });
 
 
