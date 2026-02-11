@@ -182,5 +182,17 @@ async function basicInit(page: Page) {
     await expect(page).toHaveURL(/\/login$/);
   });
 
+  test('normal user cannot access admin dashboard', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('d@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('a');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.goto('/admin-dashboard');
+    await expect(page.getByRole('main')).toContainText('Oops');
+  });
+
+
 
 
