@@ -3,113 +3,90 @@ import { Page } from "@playwright/test";
 import { Role, User } from "../src/service/pizzaService";
 
 async function basicInit(page: Page) {
-    // Scoped variables within the function to prevent cross-worker pollution
-  let loggedInUser: User | undefined;
-  const validUsers: Record<string, User> = { 
-    'd@jwt.com': { 
-      id: '3', 
-      name: 'Kai Chen', 
-      email: 'd@jwt.com', 
-      password: 'a', 
-      roles: [{ role: Role.Diner }] 
-    } 
-  };
-
-  await page.route('*/**/api/auth', async (route) => {
-    const method = route.request().method();
-    
-    // Handle Logout (DELETE)
-    if (method === 'DELETE') {
-      loggedInUser = undefined;
-      await route.fulfill({ json: { message: 'logout successful' } });
-      return;
-    }
-
-    // Handle Login (Expects PUT/POST)
-    const loginReq = route.request().postDataJSON();
-    
-    // SAFETY: Check if body exists before accessing .email
-    if (!loginReq || !loginReq.email) {
-      await route.fulfill({ 
-        status: 400, 
-        json: { message: 'Missing credentials' } 
-      });
-      return;
-    }
-
-    const user = validUsers[loginReq.email];
-    if (!user || user.password !== loginReq.password) {
-      await route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
-      return;
-    }
-
-    loggedInUser = user;
-    await route.fulfill({ 
-      json: { user: loggedInUser, token: 'abcdef' } 
+    let loggedInUser: User | undefined;
+    const validUsers: Record<string, User> = {
+      'd@jwt.com': {
+        id: '3',
+        name: 'Kai Chen',
+        email: 'd@jwt.com',
+        password: 'a',
+        roles: [{ role: Role.Diner }]
+      }
+    };
+  
+    // --- Auth & User Mocking ---
+    await page.route('*/**/api/auth', async (route) => {
+      const method = route.request().method();
+      if (method === 'DELETE') {
+        loggedInUser = undefined;
+        return route.fulfill({ json: { message: 'logout successful' } });
+      }
+  
+      const loginReq = route.request().postDataJSON();
+      if (!loginReq || !loginReq.email) {
+        return route.fulfill({ status: 400, json: { message: 'Missing credentials' } });
+      }
+  
+      const user = validUsers[loginReq.email];
+      if (!user || user.password !== loginReq.password) {
+        return route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
+      }
+  
+      loggedInUser = user;
+      await route.fulfill({ json: { user: loggedInUser, token: 'abcdef' } });
     });
-  });
-
-  await page.route('*/**/api/user/me', async (route) => {
-    // If no user is logged in, return 401 or null depending on your app's expectation
-    if (!loggedInUser) {
-      await route.fulfill({ status: 401, json: { message: 'Not logged in' } });
-    } else {
+  
+    await page.route('*/**/api/user/me', async (route) => {
+      if (!loggedInUser) {
+        return route.fulfill({ status: 401, json: { message: 'Not logged in' } });
+      }
       await route.fulfill({ json: loggedInUser });
-    }
-  });
+    });
   
-    // A standard menu
+    // --- Menu & Franchise Mocking ---
     await page.route('*/**/api/order/menu', async (route) => {
-      const menuRes = [
-        {
-          id: 1,
-          title: 'Veggie',
-          image: 'pizza1.png',
-          price: 0.0038,
-          description: 'A garden of delight',
-        },
-        {
-          id: 2,
-          title: 'Pepperoni',
-          image: 'pizza2.png',
-          price: 0.0042,
-          description: 'Spicy treat',
-        },
-      ];
-      expect(route.request().method()).toBe('GET');
-      await route.fulfill({ json: menuRes });
+      await route.fulfill({
+        json: [
+          { id: 1, title: 'Veggie', image: 'pizza1.png', price: 0.0038, description: 'A garden of delight' },
+          { id: 2, title: 'Pepperoni', image: 'pizza2.png', price: 0.0042, description: 'Spicy treat' },
+        ]
+      });
     });
   
-    // Standard franchises and stores
     await page.route(/\/api\/franchise(\?.*)?$/, async (route) => {
-      const franchiseRes = {
-        franchises: [
-          {
-            id: 2,
-            name: 'LotaPizza',
-            stores: [
-              { id: 4, name: 'Lehi' },
-              { id: 5, name: 'Springville' },
-              { id: 6, name: 'American Fork' },
-            ],
-          },
-          { id: 3, name: 'PizzaCorp', stores: [{ id: 7, name: 'Spanish Fork' }] },
-          { id: 4, name: 'topSpot', stores: [] },
-        ],
-      };
-      expect(route.request().method()).toBe('GET');
-      await route.fulfill({ json: franchiseRes });
+      await route.fulfill({
+        json: {
+          franchises: [
+            { id: 2, name: 'LotaPizza', stores: [{ id: 4, name: 'Lehi' }, { id: 5, name: 'Springville' }] },
+            { id: 3, name: 'PizzaCorp', stores: [{ id: 7, name: 'Spanish Fork' }] },
+          ]
+        }
+      });
     });
   
-    // Order a pizza.
+    // --- Multi-Method Order Mocking (FIXED) ---
     await page.route('*/**/api/order', async (route) => {
-      const orderReq = route.request().postDataJSON();
-      const orderRes = {
-        order: { ...orderReq, id: 23 },
-        jwt: 'eyJpYXQ',
-      };
-      expect(route.request().method()).toBe('POST');
-      await route.fulfill({ json: orderRes });
+      const method = route.request().method();
+  
+      if (method === 'GET') {
+        // Dashboard/History view
+        await route.fulfill({
+          json: {
+            dinerId: loggedInUser?.id || '3',
+            orders: [
+              { id: 1, menuId: 1, storeId: 4, date: '2024-05-20' },
+              { id: 2, menuId: 2, storeId: 7, date: '2024-05-21' }
+            ],
+            page: 1
+          }
+        });
+      } else if (method === 'POST') {
+        // Create Order
+        const orderReq = route.request().postDataJSON();
+        await route.fulfill({
+          json: { order: { ...orderReq, id: 23 }, jwt: 'eyJpYXQ' }
+        });
+      }
     });
   
     await page.goto('/');
@@ -193,6 +170,17 @@ async function basicInit(page: Page) {
     await expect(page.getByRole('main')).toContainText('Oops');
   });
 
+  test('diner can view their own dashboard', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('d@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('a');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('link', { name: 'KC' }).click();
+    await expect(page).toHaveURL(/\/diner-dashboard$/);
+  });
 
+  
 
 
