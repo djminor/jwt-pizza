@@ -181,6 +181,11 @@ async function basicInit(page: Page) {
     await expect(page).toHaveURL(/\/diner-dashboard$/);
   });
 
-  
+  test('docs page loads correctly', async ({ page }) => {
+    await basicInit(page);
+    await page.goto('/docs');
+    await expect(page.getByRole('main')).toContainText('JWT Pizza API');
+  });
+
 
 
