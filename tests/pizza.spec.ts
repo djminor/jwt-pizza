@@ -245,6 +245,31 @@ async function basicInit(page: Page) {
     await expect(page.getByRole('link', { name: 'Logout' })).toBeVisible();
   });
 
+  test('admin can create franchise', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('a@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('admin');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('link', { name: 'Admin' }).click();
+    await page.getByRole('button', { name: 'Add Franchise' }).click();
+    await page.getByRole('textbox', { name: 'franchise name' }).fill('Test Franchise');
+    await page.getByRole('textbox', { name: 'franchisee admin email'}).fill('f@jwt.com');
+    await page.getByRole('button', { name: 'Create' }).click();
+  });
+
+  test('franchisee can view their dashboard', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('f@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('franchisee');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+    await expect(page.getByRole('list')).toContainText('franchise-dashboard');
+  });
+
 
 
 
