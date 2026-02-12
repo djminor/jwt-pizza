@@ -5,73 +5,40 @@ import { Role, User } from "../src/service/pizzaService";
 async function basicInit(page: Page) {
   let loggedInUser: User | undefined;
 
-  // Track stores in a local variable so the UI updates dynamically during the test
+  // Shared state for stores so updates persist across navigation
   const dynamicStores = [
     { id: 4, name: 'Lehi' },
     { id: 5, name: 'Springville' }
   ];
 
   const validUsers: Record<string, User> = {
-    'd@jwt.com': {
-      id: '3',
-      name: 'Kai Chen',
-      email: 'd@jwt.com',
-      password: 'a',
-      roles: [{ role: Role.Diner }]
-    },
-    'a@jwt.com': {
-      id: '1',
-      name: 'Admin User',
-      email: 'a@jwt.com',
-      password: 'admin',
-      roles: [{ role: Role.Admin }]
-    },
-    'f@jwt.com': {
-      id: '2',
-      name: 'Franchise Owner',
-      email: 'f@jwt.com',
-      password: 'franchisee',
-      roles: [{ role: Role.Franchisee }]
-    }
+    'd@jwt.com': { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'a', roles: [{ role: Role.Diner }] },
+    'a@jwt.com': { id: '1', name: 'Admin User', email: 'a@jwt.com', password: 'admin', roles: [{ role: Role.Admin }] },
+    'f@jwt.com': { id: '2', name: 'Franchise Owner', email: 'f@jwt.com', password: 'franchisee', roles: [{ role: Role.Franchisee }] }
   };
 
   // --- Auth & User Mocking ---
   await page.route('*/**/api/auth', async (route) => {
     const method = route.request().method();
-    
     if (method === 'DELETE') {
       loggedInUser = undefined;
       return route.fulfill({ json: { message: 'logout successful' } });
     }
-
     const payload = route.request().postDataJSON();
-    if (!payload || !payload.email) {
-      return route.fulfill({ status: 400, json: { message: 'Missing credentials' } });
-    }
-
-    if (method === 'POST' && payload.name) {
-      loggedInUser = {
-        id: '99',
-        name: payload.name,
-        email: payload.email,
-        roles: [{ role: Role.Diner }]
-      };
+    if (method === 'POST' && payload?.name) {
+      loggedInUser = { id: '99', name: payload.name, email: payload.email, roles: [{ role: Role.Diner }] };
       return route.fulfill({ json: { user: loggedInUser, token: 'abcdef' } });
     }
-
-    const user = validUsers[payload.email];
+    const user = validUsers[payload?.email];
     if (!user || user.password !== payload.password) {
       return route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
     }
-
     loggedInUser = user;
     await route.fulfill({ json: { user: loggedInUser, token: 'abcdef' } });
   });
 
   await page.route('*/**/api/user/me', async (route) => {
-    if (!loggedInUser) {
-      return route.fulfill({ status: 401, json: { message: 'Not logged in' } });
-    }
+    if (!loggedInUser) return route.fulfill({ status: 401, json: { message: 'Not logged in' } });
     await route.fulfill({ json: loggedInUser });
   });
 
@@ -85,78 +52,53 @@ async function basicInit(page: Page) {
     });
   });
 
-  // --- Franchise & Store Mocking ---
-  
-  // Handle Franchise GET (List) and Store POST (Creation)
+  // --- Franchise & Store Mocking (The "Smart" Mock) ---
   await page.route(/\/api\/franchise(\/.*)?$/, async (route) => {
     const method = route.request().method();
     const url = route.request().url();
 
-    // 1. POST: Create a new store
+    const franchiseData = [
+      { 
+        id: 2, 
+        name: 'LotaPizza', 
+        admins: [{ email: 'f@jwt.com', id: '2', name: 'Franchise Owner' }],
+        stores: dynamicStores 
+      },
+      { 
+        id: 3, 
+        name: 'PizzaCorp', 
+        admins: [],
+        stores: [{ id: 7, name: 'Spanish Fork' }] 
+      }
+    ];
+
     if (method === 'POST' && url.includes('/store')) {
       const payload = route.request().postDataJSON();
-      const newStore = { 
-        id: Math.floor(Math.random() * 10000), 
-        name: payload.name,
-        totalRevenue: 0 
-      };
-      
+      const newStore = { id: Math.floor(Math.random() * 10000), name: payload.name, totalRevenue: 0 };
       dynamicStores.push(newStore);
       return route.fulfill({ status: 201, json: newStore });
     }
 
-    // 2. GET: Handle different response structures
     if (method === 'GET') {
-      const franchiseData = [
-        { 
-          id: 2, 
-          name: 'LotaPizza', 
-          admins: [{ email: 'f@jwt.com', id: '2', name: 'Franchise Owner' }],
-          stores: dynamicStores 
-        },
-        { 
-          id: 3, 
-          name: 'PizzaCorp', 
-          admins: [],
-          stores: [{ id: 7, name: 'Spanish Fork' }] 
-        }
-      ];
-
-      // If the URL ends in /franchise (no ID), it's the Order page list
-      // The order page specifically needs the { franchises: [] } wrapper
+      // The Order page calls exactly /api/franchise and expects { franchises: [] }
       if (url.endsWith('/api/franchise')) {
-        return route.fulfill({
-          json: { franchises: franchiseData }
-        });
+        return route.fulfill({ json: { franchises: franchiseData } });
       }
-
-      // If the URL has an ID (e.g., /api/franchise/2), return the flat array 
-      // This is what the Franchisee Dashboard usually expects
-      return route.fulfill({
-        json: franchiseData
-      });
+      // The Dashboard calls /api/franchise/USER_ID and expects the flat array []
+      return route.fulfill({ json: franchiseData });
     }
 
     await route.continue();
   });
 
-  // --- Multi-Method Order Mocking ---
+  // --- Order Mocking ---
   await page.route('*/**/api/order', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      await route.fulfill({
-        json: {
-          dinerId: loggedInUser?.id || '3',
-          orders: [{ id: 1, menuId: 1, storeId: 4, date: '2024-05-20' }],
-          page: 1
-        }
-      });
-    } else if (method === 'POST') {
-      const orderReq = route.request().postDataJSON();
-      await route.fulfill({
-        json: { order: { ...orderReq, id: 23 }, jwt: 'eyJpYXQ' }
-      });
+      return route.fulfill({ json: { dinerId: loggedInUser?.id || '3', orders: [], page: 1 } });
     }
+    const orderReq = route.request().postDataJSON();
+    return route.fulfill({ json: { order: { ...orderReq, id: 23 }, jwt: 'eyJpYXQ' } });
   });
 
   await page.goto('/');
