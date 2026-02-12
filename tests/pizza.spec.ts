@@ -270,6 +270,16 @@ async function basicInit(page: Page) {
     await expect(page.getByRole('list')).toContainText('franchise-dashboard');
   });
 
+  test('user cannot access franchisee dashboard', async ({ page }) => {
+    await basicInit(page);
+    await page.getByRole('link', { name: 'Login' }).click();
+    await page.getByRole('textbox', { name: 'Email address' }).fill('t@jwt.com');
+    await page.getByRole('textbox', { name: 'Password' }).click();
+    await page.getByRole('textbox', { name: 'Password' }).fill('test');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+    await expect(page.getByRole('main')).toContainText('So you want a piece of the pie?');
+  });
 
 
 
