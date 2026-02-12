@@ -92,7 +92,7 @@ async function basicInit(page: Page) {
     const method = route.request().method();
     const url = route.request().url();
 
-    // POST: Create a new store inside a franchise
+    // 1. POST: Create a new store
     if (method === 'POST' && url.includes('/store')) {
       const payload = route.request().postDataJSON();
       const newStore = { 
@@ -105,23 +105,35 @@ async function basicInit(page: Page) {
       return route.fulfill({ status: 201, json: newStore });
     }
 
-    // GET: Fetch franchises (Admin view or Franchisee view)
+    // 2. GET: Handle different response structures
     if (method === 'GET') {
+      const franchiseData = [
+        { 
+          id: 2, 
+          name: 'LotaPizza', 
+          admins: [{ email: 'f@jwt.com', id: '2', name: 'Franchise Owner' }],
+          stores: dynamicStores 
+        },
+        { 
+          id: 3, 
+          name: 'PizzaCorp', 
+          admins: [],
+          stores: [{ id: 7, name: 'Spanish Fork' }] 
+        }
+      ];
+
+      // If the URL ends in /franchise (no ID), it's the Order page list
+      // The order page specifically needs the { franchises: [] } wrapper
+      if (url.endsWith('/api/franchise')) {
+        return route.fulfill({
+          json: { franchises: franchiseData }
+        });
+      }
+
+      // If the URL has an ID (e.g., /api/franchise/2), return the flat array 
+      // This is what the Franchisee Dashboard usually expects
       return route.fulfill({
-        json: [
-          { 
-            id: 2, 
-            name: 'LotaPizza', 
-            admins: [{ email: 'f@jwt.com', id: '2', name: 'Franchise Owner' }],
-            stores: dynamicStores 
-          },
-          { 
-            id: 3, 
-            name: 'PizzaCorp', 
-            admins: [],
-            stores: [{ id: 7, name: 'Spanish Fork' }] 
-          }
-        ]
+        json: franchiseData
       });
     }
 
