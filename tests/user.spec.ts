@@ -32,7 +32,10 @@ async function basicInit(page: Page) {
       
       // Support Registration (POST)
       if (method === 'POST' && loginReq.name) {
-        loggedInUser = { id: '99', name: loginReq.name, email: loginReq.email, roles: [{ role: Role.Diner }] };
+        const newUser: User = { id: `${Math.floor(100 + Math.random() * 900)}`, name: loginReq.name, email: loginReq.email, password: loginReq.password, roles: [{ role: Role.Diner }] };
+        // persist the registered user so subsequent login works in the mock
+        validUsers[newUser.email!] = newUser;
+        loggedInUser = newUser;
         return route.fulfill({ json: { user: loggedInUser, token: 'abcdef' } });
       }
   
@@ -48,6 +51,27 @@ async function basicInit(page: Page) {
     // --- User Me Mock ---
     await page.route('*/**/api/user/me', async (route) => {
       await route.fulfill({ json: loggedInUser });
+    });
+
+    // --- User Update Mock ---
+    await page.route(/\/api\/user(\/.*|\?.*)?$/, async (route) => {
+      const method = route.request().method();
+      // handle update (PUT /api/user/:id)
+      if (method === 'PUT') {
+        const payload = route.request().postDataJSON() || {};
+        // merge with existing user so we don't drop the password (or other fields)
+        const existing = loggedInUser || (payload.email && validUsers[payload.email]) || {};
+        const merged = { ...existing, ...payload } as User;
+        // preserve existing password if payload didn't include one
+        if (!payload.password && (existing as any).password) {
+          (merged as any).password = (existing as any).password;
+        }
+        loggedInUser = merged;
+        if (merged?.email) validUsers[merged.email!] = merged;
+        return route.fulfill({ json: { user: merged, token: 'abcdef' } });
+      }
+      // fallback for other user calls
+      await route.fulfill({ json: loggedInUser || null });
     });
   
     // --- Menu Mock ---
@@ -115,14 +139,21 @@ test('updateUser', async ({ page }) => {
   await page.getByRole('button', { name: 'Edit' }).click();
   await expect(page.locator('h3')).toContainText('Edit user');
   await page.getByRole('button', { name: 'Update' }).click();
-  await page.waitForSelector('[role="dialog"].hidden', { state: 'attached' });
-  await expect(page.getByRole('main')).toContainText('pizza diner');
+  await page.waitForSelector('[role="dialog"].hidden', { state: 'attached' });  await expect(page.getByRole('main')).toContainText('pizza diner');
   await page.getByRole('button', { name: 'Edit' }).click();
   await expect(page.locator('h3')).toContainText('Edit user');
   await page.getByRole('textbox').first().fill('pizza dinerx');
   await page.getByRole('button', { name: 'Update' }).click();
-
   await page.waitForSelector('[role="dialog"].hidden', { state: 'attached' });
+  await expect(page.getByRole('main')).toContainText('pizza dinerx');
+  await page.getByRole('link', { name: 'Logout' }).click();
+  await page.getByRole('link', { name: 'Login' }).click();
+
+  await page.getByRole('textbox', { name: 'Email address' }).fill(email);
+  await page.getByRole('textbox', { name: 'Password' }).fill('diner');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await page.getByRole('link', { name: 'pd' }).click();
 
   await expect(page.getByRole('main')).toContainText('pizza dinerx');
 });
